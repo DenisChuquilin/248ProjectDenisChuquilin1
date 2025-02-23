@@ -52,35 +52,67 @@ API Integration:
 
 ________________________________________
 Methodology
+
 Agile Development Approach
+
 •	The project is developed using Agile methodology for flexibility and continuous improvement.
+
 •	Why Agile?
+
 o	Allows iterative development with regular feedback.
+
 o	Facilitates collaboration and quick adjustments based on user testing.
+
 •	How It’s Applied:
+
 o	Breaking down the project into manageable tasks (sprints).
+
 o	Delivering functional components in each sprint.
+
 o	Continuous testing and feedback at the end of each sprint.
+
 Sprints Overview:
+
 •	Sprint 1:
+
 o	Set up GitHub repository and initialize project structure.
+
 o	Brainstorm ideas and figure out main concepts
+
 o	Feb 24th – March 2nd   (1 week)
+
 •	Sprint 2:
+
 o	Figure out how to implement simple open AI into projects
+
 o	Make demo code with open AI
+
 o	March 2nd – March 9th  (1 week)
+
 •	Sprint 3:
+
 o	General backend, figure out efficient algorithms, methods, and security 
+
 o	Integrating open AI into project making it work
+
 o	March 9th – April 13th (5 weeks)
+
 •	Sprint 4:
+
 o	Front end very simple GUI text boxes, buttons, pictures.
+
 o	April 13th - April 20th (1 week)
+
 •	Sprint 5:
+
 o	Connecting all the pieces, the backend to the front end, and testing
+
 o	April 20th - April 27th (1 week)
+
 •	Sprint 6:
+
 o	Testing testing and testing. Getting everything to work 
+
 o	If extra time is available and the backend is good make a more advanced GUI
+
 o	April 27th – May 12th (1 week)
