@@ -2,6 +2,7 @@
 Food Fixer
 Description
 Food Fixer is an web application designed to help users make the most out of the ingredients they already have. By entering a list of available ingredients, users can receive personalized meal suggestions along with cooking instructions.
+
 The application leverages the ChatGPT API to generate practical meal ideas making cooking more accessible and fun. Whether you’re a busy professional looking to whip up a quick dinner or someone looking to explore new recipes, Food Fixer provides tailored solutions that suit your needs.
 Key Objectives:
 •	Maximize Ingredient Utilization: Help users find meal ideas using what they already have
