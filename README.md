@@ -17,23 +17,39 @@ Key Objectives:
 
 ________________________________________
 Features:
+
 •	Ingredient Input: Users can input multiple ingredients they have on hand.
+
 •	Intelligent Meal Suggestions: ChatGPT API generates relevant meal ideas based on the entered ingredients.
+
 •	Detailed Cooking Instructions: Step-by-step instructions make it easy to prepare the suggested meals.
+
 •	Alternative Suggestions: Users can view multiple meal ideas to choose the most suitable one.
+
 •	Responsive Design: Clean, responsive UI ensuring usability on desktop and mobile devices.
+
 ________________________________________
 Technologies Used:
+
 Backend:
+
 •	Java Eclipse (using Servlets in Eclipse): Handles form submissions, processes user input, and communicates with the ChatGPT API.
 
+
 Frontend:
+
 •	HTML: Structure of the web pages, including input forms and result display sections.
+
 •	CSS: Styling for a clean and user-friendly interface.
+
 Version Control:
+
 •	GitHub: Used for version control, collaboration, and project management.
+
 API Integration:
+
 •	ChatGPT API: Provides meal suggestions and cooking instructions based on user-provided ingredients.
+
 ________________________________________
 Methodology
 Agile Development Approach
