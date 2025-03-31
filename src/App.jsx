@@ -200,10 +200,11 @@ Fiber: ~5 g`;
   }
 
   const generateAlternativeRecipe = () => {
-    if (lastUsedIngredients.length > 0) {
-      // Add a random seed to the prompt instead of modifying ingredients
-      const timestamp = new Date().getTime();
-      generateRecipe(lastUsedIngredients, true);
+    if (ingredients.filter(ing => ing.trim()).length >= 3) {
+      // Add the current recipe version to make the prompt unique
+      const currentVersion = recipeCount + 1;
+      const prompt = `Version ${currentVersion}: Create a UNIQUE recipe different from: ${recipeHistory.join(', ')}`;
+      generateRecipe(ingredients, true);
     }
   };
 
@@ -229,13 +230,25 @@ Fiber: ~5 g`;
                 className="ingredient-input"
               />
             ))}
-            <button 
-              onClick={() => generateRecipe(ingredients)}
-              disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
-              className="find-recipe-button"
-            >
-              {loading ? 'Generating...' : 'Find Recipe'}
-            </button>
+            <div className="button-group">
+              <button 
+                onClick={() => generateRecipe(ingredients)}
+                disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                className="find-recipe-button"
+              >
+                {loading ? 'Generating...' : 'Find Recipe'}
+              </button>
+              {recipe && (
+                <button 
+                  onClick={generateAlternativeRecipe}
+                  disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                  className="refresh-button"
+                  title="Generate another recipe with the same ingredients"
+                >
+                  ↻
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="popular-ingredients">
