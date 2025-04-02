@@ -7,32 +7,16 @@ function App() {
   const [ingredients, setIngredients] = useState(['', '', ''])
   const [recipe, setRecipe] = useState('')
   const [loading, setLoading] = useState(false)
-  const [calorieGoal, setCalorieGoal] = useState('')
-  const [caloriesConsumed, setCaloriesConsumed] = useState('')
   const [lastUsedIngredients, setLastUsedIngredients] = useState([]);
   const [recipeCount, setRecipeCount] = useState(0);
   const [recipeInfo, setRecipeInfo] = useState({
     ingredients: '',
     recipe: '',
-    nutritionalFacts: ''
+    nutritionalFacts: '',
+    youtubeLink: ''
   });
   const [expandedSection, setExpandedSection] = useState('');
   const [recipeHistory, setRecipeHistory] = useState([]);
-
-  // Updated chart data for calorie tracking
-  const calorieChartData = [
-    { 
-      name: "Consumed", 
-      value: caloriesConsumed === '' ? 0 : caloriesConsumed, 
-      fill: "#4CAF50"
-    },
-    { 
-      name: "Remaining", 
-      value: calorieGoal === '' || caloriesConsumed === '' ? 0 : 
-             Math.max(calorieGoal - caloriesConsumed, 0), 
-      fill: "#ff4444"
-    }
-  ]
 
   const handleIngredientChange = (index, value) => {
     const newIngredients = [...ingredients]
@@ -42,25 +26,74 @@ function App() {
     setRecipeHistory([]);
   }
 
+  const searchYouTubeVideo = async (recipeName) => {
+    console.log('Searching for video:', recipeName);
+    const API_KEY = 'AIzaSyA9_sTDUIGb8lSVBqshRFFfgLm_nkMJ9sE';
+    try {
+      // Simplify the search query to improve results
+      const searchQuery = `${recipeName} recipe how to cook`;
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(searchQuery)}&type=video&videoDuration=medium&key=${API_KEY}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('YouTube API request failed');
+      }
+      
+      const data = await response.json();
+      console.log('YouTube API response:', data);
+      
+      if (data.items && data.items.length > 0) {
+        const videoId = data.items[0].id.videoId;
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        console.log('Found video URL:', videoUrl);
+        return videoUrl;
+      }
+      return null;
+    } catch (error) {
+      console.error('YouTube search error:', error);
+      return null;
+    }
+  };
+
   const generateRecipe = async (ingredientsToUse = ingredients, isAlternative = false) => {
     setLoading(true);
+    // Clear previous recipe info immediately when generating new recipe
+    setRecipeInfo({
+      ingredients: '',
+      recipe: '',
+      nutritionalFacts: '',
+      youtubeLink: ''
+    });
+    
     try {
       setLastUsedIngredients(ingredientsToUse.filter(ing => ing.trim() !== ''));
       
-      const API_KEY = 'AIzaSyDUh5nZYD1ItsgUH4p23kPe4igDloqKZdo';
+      const API_KEY = 'AIzaSyA9_sTDUIGb8lSVBqshRFFfgLm_nkMJ9sE';
       const prompt = isAlternative 
-        ? `Create a UNIQUE HEALTHY recipe (version ${recipeCount + 1}) using: ${ingredientsToUse.join(', ')}. 
+        ? `Create a brief, healthy recipe using these ingredients: ${ingredientsToUse.join(', ')}.
            Must be different from: ${recipeHistory.join(', ')}.
-           Use healthy methods (bake/grill/steam). Keep it simple and concise.
+           
+           Rules:
+           1. Recipe name: Include main ingredients (keep under 60 characters)
+           2. Ingredients: List each ingredient on a new line with exact measurements
+           3. Directions: 2-3 clear steps (MAX 100 WORDS TOTAL)
+           4. Be specific but concise
+           
            Format:
-           Recipe Name: (short name)
+           Recipe Name: (Name with main ingredients)
            
            Ingredients:
-           - Brief list with amounts
+           - [amount] ingredient 1
+           - [amount] ingredient 2
+           - [amount] ingredient 3
+           (List each ingredient with measurements, one per line)
            
-           Directions:
-           1. Keep steps short and clear (max 4 steps)
-
+           Directions: (Keep under 100 words)
+           1. Brief, clear steps
+           2. Include temperatures and times
+           3. Final presentation
+           
            Nutrition Facts:
            Calories: [number] kcal
            Protein: [number]g
@@ -68,16 +101,27 @@ function App() {
            Fat: [number]g
            Fiber: [number]g`
         : `Create a brief, healthy recipe using: ${ingredientsToUse.join(', ')}.
-           Use healthy methods (bake/grill/steam). Keep it simple and concise.
+           
+           Rules:
+           1. Recipe name: Include main ingredients (keep under 60 characters)
+           2. Ingredients: List each ingredient on a new line with exact measurements
+           3. Directions: 2-3 clear steps (MAX 100 WORDS TOTAL)
+           4. Be specific but concise
+           
            Format:
-           Recipe Name: (short name)
+           Recipe Name: (Name with main ingredients)
            
            Ingredients:
-           - Brief list with amounts
+           - [amount] ingredient 1
+           - [amount] ingredient 2
+           - [amount] ingredient 3
+           (List each ingredient with measurements, one per line)
            
-           Directions:
-           1. Keep steps short and clear (max 4 steps)
-
+           Directions: (Keep under 100 words)
+           1. Brief, clear steps
+           2. Include temperatures and times
+           3. Final presentation
+           
            Nutrition Facts:
            Calories: [number] kcal
            Protein: [number]g
@@ -85,7 +129,7 @@ function App() {
            Fat: [number]g
            Fiber: [number]g`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,41 +158,60 @@ function App() {
       
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
         const generatedText = data.candidates[0].content.parts[0].text;
-        const sections = generatedText.split('\n\n');
+        console.log('Full generated text:', generatedText); // Debug log
         
-        const recipeName = sections[0].replace('Recipe Name:', '').trim();
+        // Split by sections more reliably
+        const recipeName = generatedText.match(/Recipe Name:([^\n]*)/)?.[1]?.trim() || '';
         
-        // Check if this recipe name has been used before
-        if (isAlternative && recipeHistory.includes(recipeName)) {
-          throw new Error('Recipe too similar to previous versions. Please try again.');
+        // Extract ingredients section
+        const wordCount = (text) => text.trim().split(/\s+/).length;
+        const ingredientsMatch = generatedText.match(/Ingredients:([\s\S]*?)(?=Directions:|$)/);
+        let ingredientSection = '';
+        if (ingredientsMatch) {
+          // Split into lines and process each line
+          const ingredientLines = ingredientsMatch[1]
+            .trim()
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line && line !== '-' && !line.includes('Keep under 100 words')); // Remove formatting lines
+
+          // Join the lines back together
+          ingredientSection = ingredientLines.join('\n');
         }
 
-        // Add the new recipe name to history
-        setRecipeHistory(prev => [...prev, recipeName]);
-        
-        const ingredientSection = sections.find(s => s.startsWith('Ingredients:'))
-          ?.replace('Ingredients:', '')
-          .trim()
-          .split('\n')
-          .map(ing => ing.trim())
-          .filter(ing => ing)
-          .join('\n');
+        // Truncate if over 100 words
+        if (wordCount(ingredientSection) > 100) {
+          const words = ingredientSection.split(/\s+/);
+          ingredientSection = words.slice(0, 100).join(' ');
+        }
 
-        const directionsSection = sections.find(s => s.startsWith('Directions:'))
-          ?.replace('Directions:', '')
-          .trim()
-          .split('\n')
-          .map(step => step.trim())
-          .filter(step => step)
-          .join('\n');
+        // Extract directions section
+        const directionsMatch = generatedText.match(/Directions:([\s\S]*?)(?=Nutrition Facts:|$)/);
+        let directionsSection = directionsMatch
+          ? directionsMatch[1]
+              .trim()
+              .split('\n')
+              .map(line => line.trim())
+              .filter(line => line && !line.startsWith('-'))
+              .join('\n')
+          : '';
 
-        // Updated nutrition facts parsing with default values
-        let nutritionSection = sections.find(s => s.startsWith('Nutrition Facts'))
-          ?.split('\n')
-          .slice(1)
-          .map(fact => fact.trim())
-          .filter(fact => fact)
-          .join('\n');
+        // Truncate if over 100 words
+        if (wordCount(directionsSection) > 100) {
+          const words = directionsSection.split(/\s+/);
+          directionsSection = words.slice(0, 100).join(' ');
+        }
+
+        // Extract nutrition facts
+        const nutritionMatch = generatedText.match(/Nutrition Facts:([\s\S]*?)$/);
+        let nutritionSection = nutritionMatch
+          ? nutritionMatch[1]
+              .trim()
+              .split('\n')
+              .map(line => line.trim())
+              .filter(line => line)
+              .join('\n')
+          : '';
 
         // If nutrition facts are missing, provide estimated values
         if (!nutritionSection) {
@@ -159,188 +222,292 @@ Fat: ~15 g
 Fiber: ~5 g`;
         }
 
+        console.log('Parsed sections:', {
+          name: recipeName,
+          ingredients: ingredientSection,
+          directions: directionsSection,
+          nutrition: nutritionSection
+        });
+
+        // Check if this recipe name has been used before
+        if (isAlternative && recipeHistory.includes(recipeName)) {
+          throw new Error('Recipe too similar to previous versions. Please try again.');
+        }
+
+        // Add the new recipe name to history
+        setRecipeHistory(prev => [...prev, recipeName]);
+
+        // Search for new YouTube video with new recipe name
+        try {
+          const youtubeLink = await searchYouTubeVideo(recipeName);
+          console.log('Setting new YouTube link:', youtubeLink);
+          
+          // Update all recipe info at once with new data
+          setRecipeInfo({
+            ingredients: ingredientSection,
+            recipe: directionsSection,
+            nutritionalFacts: nutritionSection,
+            youtubeLink: youtubeLink || ''
+          });
+        } catch (error) {
+          console.error('Error fetching YouTube video:', error);
+          // Still update recipe info even if YouTube search fails
+          setRecipeInfo({
+            ingredients: ingredientSection,
+            recipe: directionsSection,
+            nutritionalFacts: nutritionSection,
+            youtubeLink: ''
+          });
+        }
+
         setRecipe(recipeName);
         setRecipeCount(prev => prev + 1);
-        
-        setRecipeInfo({
-          ingredients: ingredientSection,
-          recipe: directionsSection,
-          nutritionalFacts: nutritionSection
-        });
       } else {
         throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Error details:', error);
       setRecipe('Error generating recipe. Please try again. Error: ' + error.message);
+      // Clear all recipe info on error
       setRecipeInfo({
         ingredients: '',
         recipe: '',
-        nutritionalFacts: ''
+        nutritionalFacts: '',
+        youtubeLink: ''
       });
     }
     setLoading(false);
   };
 
-  const handleCalorieInput = (e) => {
-    // Allow empty value for calories consumed
-    const value = e.target.value === '' ? '' : Math.max(0, Number(e.target.value))
-    // Only check max value if both values are numbers
-    if (value !== '' && calorieGoal !== '' && value > calorieGoal) {
-      setCaloriesConsumed(calorieGoal)
-    } else {
-      setCaloriesConsumed(value)
-    }
-  }
-
-  const handleCalorieGoalInput = (e) => {
-    // Allow empty value
-    const value = e.target.value === '' ? '' : Math.max(0, Number(e.target.value))
-    setCalorieGoal(value)
-  }
-
   const generateAlternativeRecipe = () => {
     if (ingredients.filter(ing => ing.trim()).length >= 3) {
-      // Add the current recipe version to make the prompt unique
-      const currentVersion = recipeCount + 1;
-      const prompt = `Version ${currentVersion}: Create a UNIQUE recipe different from: ${recipeHistory.join(', ')}`;
+      // Reset recipe count if it gets too high to avoid diluting specificity
+      if (recipeCount > 5) {
+        setRecipeCount(0);
+        setRecipeHistory([]);
+      }
+      // Clear previous recipe info before generating new one
+      setRecipeInfo({
+        ingredients: '',
+        recipe: '',
+        nutritionalFacts: '',
+        youtubeLink: ''
+      });
       generateRecipe(ingredients, true);
     }
   };
 
+  const handleIngredientClick = (ingredient) => {
+    // Find the first empty input box
+    const emptyIndex = ingredients.findIndex(ing => !ing.trim());
+    if (emptyIndex !== -1) {
+      const newIngredients = [...ingredients];
+      newIngredients[emptyIndex] = ingredient;
+      setIngredients(newIngredients);
+    }
+  };
+
+  const scrollToAbout = () => {
+    document.getElementById('about-us').scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="container">
-      <header>
-        <h1>Food Fixer</h1>
-      </header>
-      
-      <h2>Welcome to Food Fixer</h2>
-      
-      <div className="main-content">
-        <div className="left-section">
-          <h3>Enter Ingredients</h3>
-          <div className="ingredients-form">
-            {ingredients.map((ingredient, index) => (
-              <input
-                key={index}
-                type="text"
-                value={ingredient}
-                onChange={(e) => handleIngredientChange(index, e.target.value)}
-                placeholder={`Ingredient ${index + 1}`}
-                className="ingredient-input"
-              />
-            ))}
-            <div className="button-group">
-              <button 
-                onClick={() => generateRecipe(ingredients)}
-                disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
-                className="find-recipe-button"
-              >
-                {loading ? 'Generating...' : 'Find Recipe'}
-              </button>
-              {recipe && (
-                <button 
-                  onClick={generateAlternativeRecipe}
-                  disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
-                  className="refresh-button"
-                  title="Generate another recipe with the same ingredients"
-                >
-                  ↻
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="popular-ingredients">
-            <h3>Popular Ingredients</h3>
-            <div className="ingredient-icons">
-              <div className="ingredient-item">
-                <span className="ingredient-icon">🥕</span>
-                <span>Carrot</span>
-              </div>
-              <div className="ingredient-item">
-                <span className="ingredient-icon">🍎</span>
-                <span>Apple</span>
-              </div>
-              <div className="ingredient-item">
-                <span className="ingredient-icon">🥚</span>
-                <span>Egg</span>
-              </div>
-            </div>
-          </div>
+    <>
+      <div className="header-bar">
+        <div className="header-left">
+          <img src="/logo.png" alt="Food Fixer Logo" className="header-logo" />
+          <span className="header-text">Food Fixer</span>
         </div>
-
-        <div className="right-section">
-          <h3>Calorie Tracker</h3>
-          <div className="calorie-chart">
-            <LineChart width={600} height={300}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <CartesianGrid strokeDasharray="3 3" />
-              <Line type="monotone" dataKey="calories" stroke="#4CAF50" />
-            </LineChart>
-          </div>
-        </div>
+        <nav className="nav-links">
+          <button onClick={scrollToAbout} className="nav-link">About Us</button>
+        </nav>
       </div>
-
-      {recipe && (
-        <div className="recipe-result">
-          <h3>{recipe}</h3>
-          <div className="recipe-content">
-            <div className="collapsible-section">
-              <button 
-                className={`collapse-button ${expandedSection === 'ingredients' ? 'active' : ''}`}
-                onClick={() => setExpandedSection(expandedSection === 'ingredients' ? '' : 'ingredients')}
-              >
-                Ingredients ▼
-              </button>
-              {expandedSection === 'ingredients' && (
-                <div className="collapse-content">
-                  {recipeInfo.ingredients.split('\n').map((ingredient, index) => (
-                    <p key={index} className="content-line">{ingredient}</p>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="collapsible-section">
-              <button 
-                className={`collapse-button ${expandedSection === 'directions' ? 'active' : ''}`}
-                onClick={() => setExpandedSection(expandedSection === 'directions' ? '' : 'directions')}
-              >
-                Directions ▼
-              </button>
-              <div className={`collapse-content ${expandedSection === 'directions' ? 'show' : 'hide'}`}>
-                {recipeInfo.recipe.split('\n').map((step, index) => (
-                  <p key={index} className="content-line">{step}</p>
-                ))}
-                <div className="recipe-counter">
-                  Recipe version: {recipeCount}
-                </div>
+      <div className="container">
+        <header>
+          <h1>Food Fixer</h1>
+        </header>
+        
+        <h2>Welcome to Food Fixer</h2>
+        
+        <div className="main-content">
+          <div className="left-section">
+            <h3>Enter Ingredients</h3>
+            <div className="ingredients-form">
+              {ingredients.map((ingredient, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  value={ingredient}
+                  onChange={(e) => handleIngredientChange(index, e.target.value)}
+                  placeholder={`Ingredient ${index + 1}`}
+                  className="ingredient-input"
+                />
+              ))}
+              <div className="button-group">
+                <button 
+                  onClick={() => generateRecipe(ingredients)}
+                  disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                  className="find-recipe-button"
+                >
+                  {loading ? 'Generating...' : 'Find Recipe'}
+                </button>
+                {recipe && (
+                  <button 
+                    onClick={generateAlternativeRecipe}
+                    disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                    className="refresh-button"
+                    title="Generate another recipe with the same ingredients"
+                  >
+                    ↻
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="collapsible-section">
-              <button 
-                className={`collapse-button ${expandedSection === 'nutrition' ? 'active' : ''}`}
-                onClick={() => setExpandedSection(expandedSection === 'nutrition' ? '' : 'nutrition')}
-              >
-                Nutrition ▼
-              </button>
-              {expandedSection === 'nutrition' && (
-                <div className="collapse-content">
-                  <p>{recipeInfo.nutritionalFacts}</p>
+            <div className="popular-ingredients">
+              <h3>Popular Ingredients</h3>
+              <div className="ingredient-icons">
+                <div 
+                  className="ingredient-item"
+                  onClick={() => handleIngredientClick('Chicken')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="ingredient-icon">🍗</span>
+                  <span>Chicken</span>
                 </div>
-              )}
+                <div 
+                  className="ingredient-item"
+                  onClick={() => handleIngredientClick('Rice')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="ingredient-icon">🍚</span>
+                  <span>Rice</span>
+                </div>
+                <div 
+                  className="ingredient-item"
+                  onClick={() => handleIngredientClick('Steak')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="ingredient-icon">🥩</span>
+                  <span>Steak</span>
+                </div>
+                <div 
+                  className="ingredient-item"
+                  onClick={() => handleIngredientClick('Lettuce')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="ingredient-icon">🥬</span>
+                  <span>Lettuce</span>
+                </div>
+                <div 
+                  className="ingredient-item"
+                  onClick={() => handleIngredientClick('Tomato')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="ingredient-icon">🍅</span>
+                  <span>Tomato</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      <footer>
-        <p>© 2023 Food Fixer. All rights reserved.</p>
-      </footer>
-    </div>
+        {recipe && (
+          <div className="recipe-result">
+            <h3>{recipe}</h3>
+            <div className="recipe-content">
+              <div className="collapsible-section">
+                <button 
+                  className={`collapse-button ${expandedSection === 'ingredients' ? 'active' : ''}`}
+                  onClick={() => setExpandedSection(expandedSection === 'ingredients' ? '' : 'ingredients')}
+                >
+                  Ingredients ▼
+                </button>
+                {expandedSection === 'ingredients' && (
+                  <div className="collapse-content">
+                    {recipeInfo.ingredients.split('\n').map((ingredient, index) => {
+                      // Skip empty lines and formatting instructions
+                      if (!ingredient.trim() || ingredient.includes('Keep under')) return null;
+                      return (
+                        <p key={index} className="content-line">
+                          {ingredient.startsWith('-') ? ingredient : `- ${ingredient}`}
+                        </p>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="collapsible-section">
+                <button 
+                  className={`collapse-button ${expandedSection === 'directions' ? 'active' : ''}`}
+                  onClick={() => setExpandedSection(expandedSection === 'directions' ? '' : 'directions')}
+                >
+                  Directions ▼
+                </button>
+                <div className={`collapse-content ${expandedSection === 'directions' ? 'show' : 'hide'}`}>
+                  {recipeInfo.recipe.split('\n').map((step, index) => (
+                    <p key={index} className="content-line">{step}</p>
+                  ))}
+                  {recipeInfo.youtubeLink && (
+                    <div className="youtube-link">
+                      <p className="tutorial-text">YouTube Video Based Off Ingredients:</p>
+                      <a 
+                        href={recipeInfo.youtubeLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="tutorial-link"
+                      >
+                        Watch Recipe Based Off Ingredients
+        </a>
+      </div>
+                  )}
+                  <div className="recipe-counter">
+                    Recipe version: {recipeCount}
+                  </div>
+                </div>
+              </div>
+
+              <div className="collapsible-section">
+                <button 
+                  className={`collapse-button ${expandedSection === 'nutrition' ? 'active' : ''}`}
+                  onClick={() => setExpandedSection(expandedSection === 'nutrition' ? '' : 'nutrition')}
+                >
+                  Nutrition ▼
+        </button>
+                {expandedSection === 'nutrition' && (
+                  <div className="collapse-content">
+                    <p>{recipeInfo.nutritionalFacts}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div id="about-us" className="about-section">
+          <h2>About Us</h2>
+          <div className="about-grid">
+            <div className="about-box">
+              <h3>Our Mission</h3>
+              <p>At Food Fixer, we're passionate about helping people transform everyday ingredients into delicious meals. Our platform combines innovative recipe generation with practical cooking solutions.</p>
+            </div>
+            <div className="about-box">
+              <h3>What We Do</h3>
+              <p>We provide smart recipe suggestions based on your available ingredients, complete with nutritional information and video tutorials. Our goal is to make cooking easier and more enjoyable for everyone.</p>
+            </div>
+            <div className="about-box">
+              <h3>Our Vision</h3>
+              <p>We envision a world where no ingredient goes to waste and where everyone can cook with confidence. Through our platform, we're making this vision a reality, one recipe at a time.</p>
+            </div>
+          </div>
+        </div>
+
+        <footer className="footer">
+          <p>© 2023 Food Fixer. All rights reserved.</p>
+        </footer>
+      </div>
+    </>
   )
 }
 
