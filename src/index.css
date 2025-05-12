@@ -4,8 +4,8 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: #4CAF50;  /* Green text */
-  background-color: #ffffff;  /* White background */
+  color: #4A90E2;  /* Changed from #4CAF50 to #4A90E2 */
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -37,19 +37,19 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid #4CAF50;
+  border: 1px solid #4A90E2;  /* Changed from #4CAF50 */
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
   background-color: #ffffff;
-  color: #4CAF50;
+  color: #4A90E2;  /* Changed from #4CAF50 */
   cursor: pointer;
   transition: all 0.25s;
 }
 button:hover {
-  border-color: #45a049;
-  background-color: #4CAF50;
+  border-color: #3a80d2;  /* Slightly darker shade of the new blue */
+  background-color: #4A90E2;  /* Changed from #4CAF50 */
   color: #ffffff;
 }
 button:focus,
@@ -59,7 +59,7 @@ button:focus-visible {
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #4CAF50;
+    color: #4A90E2;  /* Changed from #4CAF50 */
     background-color: #ffffff;
   }
   a:hover {
@@ -72,16 +72,16 @@ button:focus-visible {
 
 .calorie-tracker, .recipe-section {
   background: #ffffff;
-  border: 1px solid #4CAF50;
+  border: 1px solid #4A90E2;  /* Changed from #4CAF50 */
 }
 
 .calorie-input, .ingredient-input {
   background-color: #ffffff;
-  color: #4CAF50;
-  border: 1px solid #4CAF50;
+  color: #4A90E2;  /* Changed from #4CAF50 */
+  border: 1px solid #4A90E2;  /* Changed from #4CAF50 */
 }
 
 .recipe-result {
-  border: 1px solid #4CAF50;
+  border: 1px solid #4A90E2;  /* Changed from #4CAF50 */
   background: #ffffff;
 }

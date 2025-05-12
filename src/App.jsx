@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Label, Pie, PieChart, LineChart, XAxis, YAxis, CartesianGrid, Line } from "recharts"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import './App.css'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import About from './About'
 
 function App() {
   const [ingredients, setIngredients] = useState(['', '', ''])
@@ -17,6 +19,24 @@ function App() {
   });
   const [expandedSection, setExpandedSection] = useState('');
   const [recipeHistory, setRecipeHistory] = useState([]);
+  const [selectedAllergies, setSelectedAllergies] = useState([])
+  const [customAllergy, setCustomAllergy] = useState('')
+  const [showAllergyList, setShowAllergyList] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [recipeHistoryList, setRecipeHistoryList] = useState([])
+
+  const commonAllergies = [
+    'Peanuts',
+    'Tree Nuts',
+    'Milk',
+    'Eggs',
+    'Soy',
+    'Wheat',
+    'Fish',
+    'Shellfish',
+    'Sesame',
+    'Gluten'
+  ]
 
   const handleIngredientChange = (index, value) => {
     const newIngredients = [...ingredients]
@@ -56,9 +76,78 @@ function App() {
     }
   };
 
+  const handleAllergySelect = (allergy) => {
+    if (!selectedAllergies.includes(allergy)) {
+      setSelectedAllergies([...selectedAllergies, allergy])
+    }
+  }
+
+  const handleAllergyRemove = (allergy) => {
+    setSelectedAllergies(selectedAllergies.filter(a => a !== allergy))
+  }
+
+  const handleCustomAllergyAdd = () => {
+    if (customAllergy.trim() && !selectedAllergies.includes(customAllergy.trim())) {
+      setSelectedAllergies([...selectedAllergies, customAllergy.trim()])
+      setCustomAllergy('')
+    }
+  }
+
+  const saveToHistory = (recipeData) => {
+    const historyItem = {
+      name: recipeData.name,
+      ingredients: recipeData.ingredients,
+      directions: recipeData.directions,
+      nutrition: recipeData.nutrition,
+      youtubeLink: recipeData.youtubeLink,
+      timestamp: new Date().toISOString()
+    }
+    setRecipeHistoryList(prev => [historyItem, ...prev].slice(0, 10))
+  }
+
+  const loadFromHistory = (historyItem) => {
+    // Set the recipe name
+    setRecipe(historyItem.name);
+    
+    // Set all recipe info
+    setRecipeInfo({
+      ingredients: historyItem.ingredients,
+      recipe: historyItem.directions,
+      nutritionalFacts: historyItem.nutrition,
+      youtubeLink: historyItem.youtubeLink
+    });
+
+    // Extract ingredients from the recipe and populate the input boxes
+    const ingredientLines = historyItem.ingredients.split('\n')
+      .filter(line => line.trim() && !line.includes('Keep under'))
+      .map(line => line.replace(/^-\s*/, '').trim()); // Remove bullet points and trim
+
+    // Create a new array with the extracted ingredients
+    const newIngredients = [...ingredients];
+    ingredientLines.forEach((ingredient, index) => {
+      if (index < newIngredients.length) {
+        newIngredients[index] = ingredient;
+      }
+    });
+    setIngredients(newIngredients);
+
+    // Expand all sections automatically
+    setExpandedSection('all');
+    
+    // Close the history dropdown
+    setShowHistory(false);
+  };
+
+  const toggleSection = (section) => {
+    if (expandedSection === 'all') {
+      setExpandedSection(section);
+    } else {
+      setExpandedSection(expandedSection === section ? '' : section);
+    }
+  };
+
   const generateRecipe = async (ingredientsToUse = ingredients, isAlternative = false) => {
     setLoading(true);
-    // Clear previous recipe info immediately when generating new recipe
     setRecipeInfo({
       ingredients: '',
       recipe: '',
@@ -70,9 +159,16 @@ function App() {
       setLastUsedIngredients(ingredientsToUse.filter(ing => ing.trim() !== ''));
       
       const API_KEY = 'AIzaSyA9_sTDUIGb8lSVBqshRFFfgLm_nkMJ9sE';
+      
+      const allergyWarning = selectedAllergies.length > 0 
+        ? `IMPORTANT: This recipe MUST NOT contain any of these allergens: ${selectedAllergies.join(', ')}.`
+        : '';
+
       const prompt = isAlternative 
         ? `Create a brief, healthy recipe using these ingredients: ${ingredientsToUse.join(', ')}.
            Must be different from: ${recipeHistory.join(', ')}.
+           
+           ${allergyWarning}
            
            Rules:
            1. Recipe name: Include main ingredients (keep under 60 characters)
@@ -101,6 +197,8 @@ function App() {
            Fat: [number]g
            Fiber: [number]g`
         : `Create a brief, healthy recipe using: ${ingredientsToUse.join(', ')}.
+           
+           ${allergyWarning}
            
            Rules:
            1. Recipe name: Include main ingredients (keep under 60 characters)
@@ -158,31 +256,22 @@ function App() {
       
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
         const generatedText = data.candidates[0].content.parts[0].text;
-        console.log('Full generated text:', generatedText); // Debug log
+        console.log('Full generated text:', generatedText);
         
-        // Split by sections more reliably
-        const recipeName = generatedText.match(/Recipe Name:([^\n]*)/)?.[1]?.trim() || '';
+        const recipeName = generatedText.match(/Recipe Name:([^\n]*)/)?.[1]?.trim() || 'Unnamed Recipe';
         
         // Extract ingredients section
         const wordCount = (text) => text.trim().split(/\s+/).length;
         const ingredientsMatch = generatedText.match(/Ingredients:([\s\S]*?)(?=Directions:|$)/);
         let ingredientSection = '';
         if (ingredientsMatch) {
-          // Split into lines and process each line
           const ingredientLines = ingredientsMatch[1]
             .trim()
             .split('\n')
             .map(line => line.trim())
-            .filter(line => line && line !== '-' && !line.includes('Keep under 100 words')); // Remove formatting lines
+            .filter(line => line && line !== '-' && !line.includes('Keep under'));
 
-          // Join the lines back together
           ingredientSection = ingredientLines.join('\n');
-        }
-
-        // Truncate if over 100 words
-        if (wordCount(ingredientSection) > 100) {
-          const words = ingredientSection.split(/\s+/);
-          ingredientSection = words.slice(0, 100).join(' ');
         }
 
         // Extract directions section
@@ -196,12 +285,6 @@ function App() {
               .join('\n')
           : '';
 
-        // Truncate if over 100 words
-        if (wordCount(directionsSection) > 100) {
-          const words = directionsSection.split(/\s+/);
-          directionsSection = words.slice(0, 100).join(' ');
-        }
-
         // Extract nutrition facts
         const nutritionMatch = generatedText.match(/Nutrition Facts:([\s\S]*?)$/);
         let nutritionSection = nutritionMatch
@@ -213,62 +296,43 @@ function App() {
               .join('\n')
           : '';
 
-        // If nutrition facts are missing, provide estimated values
-        if (!nutritionSection) {
-          nutritionSection = `Calories: ~300 kcal
-Protein: ~10 g
-Carbs: ~40 g
-Fat: ~15 g
-Fiber: ~5 g`;
+        // Search for YouTube video
+        let youtubeLink = '';
+        try {
+          youtubeLink = await searchYouTubeVideo(recipeName);
+          console.log('Setting new YouTube link:', youtubeLink);
+        } catch (error) {
+          console.error('Error fetching YouTube video:', error);
+          youtubeLink = '';
         }
 
-        console.log('Parsed sections:', {
+        // Update recipe info
+        const newRecipeInfo = {
+          ingredients: ingredientSection,
+          recipe: directionsSection,
+          nutritionalFacts: nutritionSection,
+          youtubeLink: youtubeLink || ''
+        };
+
+        setRecipeInfo(newRecipeInfo);
+        setRecipe(recipeName);
+        setRecipeCount(prev => prev + 1);
+
+        // Save to history with the actual recipe name
+        saveToHistory({
           name: recipeName,
           ingredients: ingredientSection,
           directions: directionsSection,
-          nutrition: nutritionSection
+          nutrition: nutritionSection,
+          youtubeLink: youtubeLink || ''
         });
 
-        // Check if this recipe name has been used before
-        if (isAlternative && recipeHistory.includes(recipeName)) {
-          throw new Error('Recipe too similar to previous versions. Please try again.');
-        }
-
-        // Add the new recipe name to history
-        setRecipeHistory(prev => [...prev, recipeName]);
-
-        // Search for new YouTube video with new recipe name
-        try {
-          const youtubeLink = await searchYouTubeVideo(recipeName);
-          console.log('Setting new YouTube link:', youtubeLink);
-          
-          // Update all recipe info at once with new data
-          setRecipeInfo({
-            ingredients: ingredientSection,
-            recipe: directionsSection,
-            nutritionalFacts: nutritionSection,
-            youtubeLink: youtubeLink || ''
-          });
-        } catch (error) {
-          console.error('Error fetching YouTube video:', error);
-          // Still update recipe info even if YouTube search fails
-          setRecipeInfo({
-            ingredients: ingredientSection,
-            recipe: directionsSection,
-            nutritionalFacts: nutritionSection,
-            youtubeLink: ''
-          });
-        }
-
-        setRecipe(recipeName);
-        setRecipeCount(prev => prev + 1);
       } else {
         throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Error details:', error);
       setRecipe('Error generating recipe. Please try again. Error: ' + error.message);
-      // Clear all recipe info on error
       setRecipeInfo({
         ingredients: '',
         recipe: '',
@@ -307,207 +371,290 @@ Fiber: ~5 g`;
     }
   };
 
-  const scrollToAbout = () => {
-    document.getElementById('about-us').scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <>
-      <div className="header-bar">
-        <div className="header-left">
-          <img src="/logo.png" alt="Food Fixer Logo" className="header-logo" />
-          <span className="header-text">Food Fixer</span>
-        </div>
-        <nav className="nav-links">
-          <button onClick={scrollToAbout} className="nav-link">About Us</button>
-        </nav>
-      </div>
-      <div className="container">
-        <header>
-          <h1>Food Fixer</h1>
-        </header>
-        
-        <h2>Welcome to Food Fixer</h2>
-        
-        <div className="main-content">
-          <div className="left-section">
-            <h3>Enter Ingredients</h3>
-            <div className="ingredients-form">
-              {ingredients.map((ingredient, index) => (
-                <input
-                  key={index}
-                  type="text"
-                  value={ingredient}
-                  onChange={(e) => handleIngredientChange(index, e.target.value)}
-                  placeholder={`Ingredient ${index + 1}`}
-                  className="ingredient-input"
-                />
-              ))}
-              <div className="button-group">
-                <button 
-                  onClick={() => generateRecipe(ingredients)}
-                  disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
-                  className="find-recipe-button"
-                >
-                  {loading ? 'Generating...' : 'Find Recipe'}
-                </button>
-                {recipe && (
+    <Router>
+      <Routes>
+        <Route path="/about" element={<About />} />
+        <Route path="/" element={
+          <>
+            <div className="header-bar">
+              <div className="header-left">
+                <img src="/logo.png" alt="Food Fixer Logo" className="header-logo" />
+                <span className="header-text">Food Fixer</span>
+                <nav className="nav-links">
                   <button 
-                    onClick={generateAlternativeRecipe}
-                    disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
-                    className="refresh-button"
-                    title="Generate another recipe with the same ingredients"
+                    onClick={() => {
+                      setShowAllergyList(!showAllergyList);
+                      setShowHistory(false); // Close history when opening allergies
+                    }} 
+                    className="nav-link"
                   >
-                    ↻
+                    Allergies
                   </button>
-                )}
+                  <button 
+                    onClick={() => {
+                      setShowHistory(!showHistory);
+                      setShowAllergyList(false); // Close allergies when opening history
+                    }} 
+                    className="nav-link"
+                  >
+                    History
+                  </button>
+                  <Link to="/about" className="nav-link">About Us</Link>
+                </nav>
               </div>
             </div>
 
-            <div className="popular-ingredients">
-              <h3>Popular Ingredients</h3>
-              <div className="ingredient-icons">
-                <div 
-                  className="ingredient-item"
-                  onClick={() => handleIngredientClick('Chicken')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="ingredient-icon">🍗</span>
-                  <span>Chicken</span>
-                </div>
-                <div 
-                  className="ingredient-item"
-                  onClick={() => handleIngredientClick('Rice')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="ingredient-icon">🍚</span>
-                  <span>Rice</span>
-                </div>
-                <div 
-                  className="ingredient-item"
-                  onClick={() => handleIngredientClick('Steak')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="ingredient-icon">🥩</span>
-                  <span>Steak</span>
-                </div>
-                <div 
-                  className="ingredient-item"
-                  onClick={() => handleIngredientClick('Lettuce')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="ingredient-icon">🥬</span>
-                  <span>Lettuce</span>
-                </div>
-                <div 
-                  className="ingredient-item"
-                  onClick={() => handleIngredientClick('Tomato')}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span className="ingredient-icon">🍅</span>
-                  <span>Tomato</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {recipe && (
-          <div className="recipe-result">
-            <h3>{recipe}</h3>
-            <div className="recipe-content">
-              <div className="collapsible-section">
-                <button 
-                  className={`collapse-button ${expandedSection === 'ingredients' ? 'active' : ''}`}
-                  onClick={() => setExpandedSection(expandedSection === 'ingredients' ? '' : 'ingredients')}
-                >
-                  Ingredients ▼
-                </button>
-                {expandedSection === 'ingredients' && (
-                  <div className="collapse-content">
-                    {recipeInfo.ingredients.split('\n').map((ingredient, index) => {
-                      // Skip empty lines and formatting instructions
-                      if (!ingredient.trim() || ingredient.includes('Keep under')) return null;
-                      return (
-                        <p key={index} className="content-line">
-                          {ingredient.startsWith('-') ? ingredient : `- ${ingredient}`}
-                        </p>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="collapsible-section">
-                <button 
-                  className={`collapse-button ${expandedSection === 'directions' ? 'active' : ''}`}
-                  onClick={() => setExpandedSection(expandedSection === 'directions' ? '' : 'directions')}
-                >
-                  Directions ▼
-                </button>
-                <div className={`collapse-content ${expandedSection === 'directions' ? 'show' : 'hide'}`}>
-                  {recipeInfo.recipe.split('\n').map((step, index) => (
-                    <p key={index} className="content-line">{step}</p>
-                  ))}
-                  {recipeInfo.youtubeLink && (
-                    <div className="youtube-link">
-                      <p className="tutorial-text">YouTube Video Based Off Ingredients:</p>
-                      <a 
-                        href={recipeInfo.youtubeLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="tutorial-link"
+            {showAllergyList && (
+              <div className="header-dropdown allergies-dropdown">
+                <div className="allergies-container">
+                  <div className="common-allergies">
+                    {commonAllergies.map((allergy) => (
+                      <button
+                        key={allergy}
+                        className={`allergy-button ${selectedAllergies.includes(allergy) ? 'selected' : ''}`}
+                        onClick={() => handleAllergySelect(allergy)}
                       >
-                        Watch Recipe Based Off Ingredients
+                        {allergy}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="custom-allergy">
+                    <input
+                      type="text"
+                      value={customAllergy}
+                      onChange={(e) => setCustomAllergy(e.target.value)}
+                      placeholder="Add custom allergy"
+                      className="custom-allergy-input"
+                    />
+                    <button 
+                      onClick={handleCustomAllergyAdd}
+                      className="add-allergy-button"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {selectedAllergies.length > 0 && (
+                    <div className="selected-allergies">
+                      <h4>Selected Allergies:</h4>
+                      <div className="allergy-tags">
+                        {selectedAllergies.map((allergy) => (
+                          <span key={allergy} className="allergy-tag">
+                            {allergy}
+                            <button
+                              onClick={() => handleAllergyRemove(allergy)}
+                              className="remove-allergy"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showHistory && (
+              <div className="header-dropdown history-dropdown">
+                <div className="history-container">
+                  <h3>Recent Recipes</h3>
+                  {recipeHistoryList.length > 0 ? (
+                    <div className="history-list">
+                      {recipeHistoryList.map((item, index) => (
+                        <div 
+                          key={index} 
+                          className="history-item"
+                          onClick={() => loadFromHistory(item)}
+                        >
+                          <div className="history-item-content">
+                            <span className="history-name">{item.name}</span>
+                            <span className="history-date">
+                              {new Date(item.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-history">No recipes in history</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="container">
+              <header>
+                <h1>Food Fixer</h1>
+              </header>
+              
+              <h2>Welcome to Food Fixer</h2>
+              
+              <div className="main-content">
+                <div className="left-section">
+                  <h3>Enter Ingredients</h3>
+                  <div className="ingredients-form">
+                    {ingredients.map((ingredient, index) => (
+                      <input
+                        key={index}
+                        type="text"
+                        value={ingredient}
+                        onChange={(e) => handleIngredientChange(index, e.target.value)}
+                        placeholder={`Ingredient ${index + 1}`}
+                        className="ingredient-input"
+                      />
+                    ))}
+                    <div className="button-group">
+                      <button 
+                        onClick={() => generateRecipe(ingredients)}
+                        disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                        className="find-recipe-button"
+                      >
+                        {loading ? 'Generating...' : 'Find Recipe'}
+                      </button>
+                      {recipe && (
+                        <button 
+                          onClick={generateAlternativeRecipe}
+                          disabled={loading || ingredients.filter(ing => ing.trim()).length < 3}
+                          className="refresh-button"
+                          title="Generate another recipe with the same ingredients"
+                        >
+                          ↻
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="popular-ingredients">
+                    <h3>Popular Ingredients</h3>
+                    <div className="ingredient-icons">
+                      <div 
+                        className="ingredient-item"
+                        onClick={() => handleIngredientClick('Chicken')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="ingredient-icon">🍗</span>
+                        <span>Chicken</span>
+                      </div>
+                      <div 
+                        className="ingredient-item"
+                        onClick={() => handleIngredientClick('Rice')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="ingredient-icon">🍚</span>
+                        <span>Rice</span>
+                      </div>
+                      <div 
+                        className="ingredient-item"
+                        onClick={() => handleIngredientClick('Steak')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="ingredient-icon">🥩</span>
+                        <span>Steak</span>
+                      </div>
+                      <div 
+                        className="ingredient-item"
+                        onClick={() => handleIngredientClick('Lettuce')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="ingredient-icon">🥬</span>
+                        <span>Lettuce</span>
+                      </div>
+                      <div 
+                        className="ingredient-item"
+                        onClick={() => handleIngredientClick('Tomato')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="ingredient-icon">🍅</span>
+                        <span>Tomato</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {recipe && (
+                <div className="recipe-result">
+                  <h3>{recipe}</h3>
+                  <div className="recipe-content">
+                    <div className="collapsible-section">
+                      <button 
+                        className={`collapse-button ${expandedSection === 'ingredients' || expandedSection === 'all' ? 'active' : ''}`}
+                        onClick={() => toggleSection('ingredients')}
+                      >
+                        Ingredients ▼
+                      </button>
+                      {(expandedSection === 'ingredients' || expandedSection === 'all') && (
+                        <div className="collapse-content">
+                          {recipeInfo.ingredients.split('\n').map((ingredient, index) => {
+                            if (!ingredient.trim() || ingredient.includes('Keep under')) return null;
+                            return (
+                              <p key={index} className="content-line">
+                                {ingredient.startsWith('-') ? ingredient : `- ${ingredient}`}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="collapsible-section">
+                      <button 
+                        className={`collapse-button ${expandedSection === 'directions' || expandedSection === 'all' ? 'active' : ''}`}
+                        onClick={() => toggleSection('directions')}
+                      >
+                        Directions ▼
+                      </button>
+                      {(expandedSection === 'directions' || expandedSection === 'all') && (
+                        <div className="collapse-content">
+                          {recipeInfo.recipe.split('\n').map((step, index) => (
+                            <p key={index} className="content-line">{step}</p>
+                          ))}
+                          {recipeInfo.youtubeLink && (
+                            <div className="youtube-link">
+                              <p className="tutorial-text">YouTube Video Based Off Ingredients:</p>
+                              <a 
+                                href={recipeInfo.youtubeLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="tutorial-link"
+                              >
+                                Watch Recipe Based Off Ingredients
         </a>
       </div>
-                  )}
-                  <div className="recipe-counter">
-                    Recipe version: {recipeCount}
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="collapsible-section">
+                      <button 
+                        className={`collapse-button ${expandedSection === 'nutrition' || expandedSection === 'all' ? 'active' : ''}`}
+                        onClick={() => toggleSection('nutrition')}
+                      >
+                        Nutrition ▼
+        </button>
+                      {(expandedSection === 'nutrition' || expandedSection === 'all') && (
+                        <div className="collapse-content">
+                          <p>{recipeInfo.nutritionalFacts}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="collapsible-section">
-                <button 
-                  className={`collapse-button ${expandedSection === 'nutrition' ? 'active' : ''}`}
-                  onClick={() => setExpandedSection(expandedSection === 'nutrition' ? '' : 'nutrition')}
-                >
-                  Nutrition ▼
-        </button>
-                {expandedSection === 'nutrition' && (
-                  <div className="collapse-content">
-                    <p>{recipeInfo.nutritionalFacts}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div id="about-us" className="about-section">
-          <h2>About Us</h2>
-          <div className="about-grid">
-            <div className="about-box">
-              <h3>Our Mission</h3>
-              <p>At Food Fixer, we're passionate about helping people transform everyday ingredients into delicious meals. Our platform combines innovative recipe generation with practical cooking solutions.</p>
-            </div>
-            <div className="about-box">
-              <h3>What We Do</h3>
-              <p>We provide smart recipe suggestions based on your available ingredients, complete with nutritional information and video tutorials. Our goal is to make cooking easier and more enjoyable for everyone.</p>
-            </div>
-            <div className="about-box">
-              <h3>Our Vision</h3>
-              <p>We envision a world where no ingredient goes to waste and where everyone can cook with confidence. Through our platform, we're making this vision a reality, one recipe at a time.</p>
-            </div>
-          </div>
-        </div>
-
-        <footer className="footer">
-          <p>© 2023 Food Fixer. All rights reserved.</p>
-        </footer>
+              <footer className="footer">
+                <p>© 2023 Food Fixer. All rights reserved.</p>
+              </footer>
       </div>
     </>
+        } />
+      </Routes>
+    </Router>
   )
 }
 
