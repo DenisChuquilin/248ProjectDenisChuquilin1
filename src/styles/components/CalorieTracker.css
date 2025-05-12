@@ -1,0 +1,49 @@
+.right-section {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calorie-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem auto;
+  width: 90%;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.calorie-input {
+  padding: 0.5em;
+  border-radius: 4px;
+  border: 1px solid #4CAF50;
+  background-color: #ffffff;
+  color: #000000;
+  font-size: 1em;
+  width: 100%;
+  text-align: center;
+}
+
+.calorie-chart {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+label {
+  color: #4CAF50;
+  font-weight: 500;
+}
+
+h3 {
+  color: #4CAF50;
+  margin-bottom: 20px;
+} 

@@ -1,0 +1,99 @@
+.recipe-result {
+  flex: 1;
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #4CAF50;
+  border-radius: 8px;
+  overflow-y: auto;
+  background-color: #ffffff;
+}
+
+.recipe-result h3 {
+  color: #4CAF50;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #4CAF50;
+}
+
+.collapsible-section {
+  margin: 10px 0;
+}
+
+.collapse-button {
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.collapse-button:hover {
+  background-color: #f0f0f0;
+}
+
+.collapse-button.active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.collapse-content {
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background-color: white;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.content-line {
+  margin: 8px 0;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+.nutrition-line {
+  margin: 12px 0;
+  line-height: 1.6;
+  padding: 4px 0;
+  font-size: 1.1em;
+  border-bottom: 1px solid #eee;
+}
+
+.youtube-link {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.tutorial-text {
+  color: #4CAF50;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.tutorial-link {
+  color: #4CAF50;
+  text-decoration: none;
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #4CAF50;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.tutorial-link:hover {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.collapse-content.hide {
+  display: none;
+}
+
+.collapse-content.show {
+  display: block;
+} 
