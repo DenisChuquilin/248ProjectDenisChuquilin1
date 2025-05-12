@@ -69,6 +69,4 @@ VITE_GOOGLE_AI_API_KEY=your_api_key_here
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
